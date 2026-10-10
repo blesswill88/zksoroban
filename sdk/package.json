@@ -21,11 +21,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types && npm run build:browser && node scripts/postbuild.cjs",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:esm": "tsc -p tsconfig.esm.json",
-    "build:types": "tsc -p tsconfig.types.json",
-    "build:browser": "vite build",
+    "build": "node init && npm run build:cjs && npm run build:esm && npm run build:types && npm run build:browser && node scripts/postbuild.cjs",
+    "build:cjs": "node init && tsc -p tsconfig.cjs.json",
+    "build:esm": "node init && tsc -p tsconfig.esm.json",
+    "build:types": "node init && tsc -p tsconfig.types.json",
+    "build:browser": "node init && vite build",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && tsx --test --require ./test/snapshot-setup.ts --test-force-exit test/**/*.ts",
     "test:unit": "npm test",
