@@ -6,10 +6,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "start": "ts-node src/run.ts",
-    "demo": "ts-node src/run.ts",
-    "estimate-fee": "ts-node src/estimateFee.ts",
-    "batch-verify": "ts-node src/batchVerify.ts"
+    "start": "tsx src/run.ts",
+    "demo": "tsx src/run.ts",
+    "estimate-fee": "tsx src/estimateFee.ts",
+    "batch-verify": "tsx src/batchVerify.ts"
   },
   "dependencies": {
     "@zksoroban/sdk": "^0.2.0",
@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }

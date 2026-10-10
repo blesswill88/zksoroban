@@ -28,3 +28,7 @@ circuits/threshold_2of3/setup/*_0000.zkey
 circuits/threshold_2of3/setup/*_final.zkey
 soroban-zk.md
 BUILD_LOG.md
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
