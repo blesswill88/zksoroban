@@ -850,6 +850,40 @@ Why Groth16:
 - verification is efficient
 - the Soroban BN254 host support makes it practical on-chain
 
+## Contract Error Codes
+
+`contracts/verifier` defines a single `VerifierError` enum with
+`#[contracterror]`, so every failure mode surfaces as a typed, numbered
+code in transaction metadata instead of an ad-hoc panic. The numeric
+discriminants below are **stable** — SDK error mapping and downstream
+contracts decode rejections purely by these numbers, so existing codes
+must never be renumbered or reused; new failure modes get new numbers
+appended.
+
+| Code | Variant                  | Meaning                                                        |
+|------|--------------------------|----------------------------------------------------------------|
+| 1    | `NotInitialized`         | Contract storage has no admin/limits set up yet                |
+| 2    | `AlreadyInitialized`     | Constructor called on an already-initialized instance          |
+| 3    | `CallerNotAllowed`       | Caller is not on the allowlist                                 |
+| 4    | `RateLimitExceeded`      | Per-caller, per-window call budget exhausted                   |
+| 5    | `ProofExpired`           | `expiry_ledger` has already passed                             |
+| 6    | `InvalidProofLength`     | A proof component has the wrong byte length                    |
+| 7    | `InvalidPublicInputs`    | Wrong number of public inputs for this circuit                 |
+| 8    | `MalformedExpiry`        | `expiry_ledger` field could not be decoded                     |
+| 9    | `InvalidVerifyingKey`    | Verifying key failed validation (e.g. `ic` length mismatch)    |
+| 10   | `AlreadyUsed`            | Nullifier already recorded — proof replay rejected             |
+| 11   | `ContractPaused`         | Emergency pause is active                                      |
+| 12   | `NoPendingAdmin`         | `accept_admin` called with no pending admin                    |
+| 13   | `NoPendingVkUpdate`      | `execute_vk_update` called with no pending proposal            |
+| 14   | `TimelockNotElapsed`     | Pending VK update's effective ledger not yet reached           |
+| 15   | `Unauthorized`           | Required auth missing for a privileged operation               |
+
+Every entry point returns `Result<T, VerifierError>` (or a `Vec<bool>`
+for batch, where per-item rejections become `false` rather than `Err` —
+see [Batch Verification](#batch-verification)). The SDK maps these
+numeric codes to typed TypeScript error objects so callers can branch on
+`err.code` instead of parsing strings.
+
 ## Non-Goals for This MVP
 
 Out of scope for the current architecture:

@@ -1,3 +1,4 @@
+
 extern crate std;
 
 use super::*;
@@ -305,7 +306,7 @@ fn verify_proof_rejects_expired_proof() {
         &public_inputs_with_expiry(&env, 50),
     );
 
-    assert_eq!(result, Err(Ok(Error::ProofExpired)));
+    assert_eq!(result, Err(Ok(VerifierError::ProofExpired)));
 }
 
 #[test]
@@ -352,18 +353,20 @@ fn verify_proof_returns_false_for_wrong_public_input_count() {
 }
 
 #[test]
-#[should_panic(expected = "proof_a must be 64 bytes")]
-fn verify_proof_panics_on_wrong_proof_a_length() {
+#[should_panic(expected = "Error(Contract, #")]
+fn verify_proof_rejects_wrong_proof_a_length() {
     let (env, _admin, client) = setup(10, 100);
     let caller = Address::generate(&env);
 
-    client.verify_proof(
+    let result = client.try_verify_proof(
         &caller,
         &Bytes::from_array(&env, &[0; 63]),
         &Bytes::from_array(&env, &VALID_PROOF_B),
         &Bytes::from_array(&env, &VALID_PROOF_C),
         &public_inputs_with_expiry(&env, u32::MAX),
     );
+
+    assert_eq!(result, Err(Ok(VerifierError::InvalidProofALength)));
 }
 
 #[test]
@@ -392,7 +395,7 @@ fn limit_hit_returns_error() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(third, Err(Ok(Error::RateLimitExceeded)));
+    assert_eq!(third, Err(Ok(VerifierError::RateLimitExceeded)));
 }
 
 #[test]
@@ -411,7 +414,7 @@ fn window_expiry_resets_counter() {
         &Bytes::from_array(&env, &VALID_PROOF_C),
         &public_inputs_with_expiry(&env, u32::MAX),
     );
-    assert_eq!(exceeded, Err(Ok(Error::RateLimitExceeded)));
+    assert_eq!(exceeded, Err(Ok(VerifierError::RateLimitExceeded)));
 
     env.ledger().with_mut(|li| {
         li.sequence_number += 11;
@@ -929,7 +932,7 @@ fn enabled_mode_blocks_unlisted_caller() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(result, Err(Ok(Error::CallerNotAllowed)));
+    assert_eq!(result, Err(Ok(VerifierError::CallerNotAllowed)));
 }
 
 #[test]
@@ -955,7 +958,7 @@ fn listed_caller_succeeds_when_allowlist_enabled() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(result, Err(Ok(Error::CallerNotAllowed)));
+    assert_eq!(result, Err(Ok(VerifierError::CallerNotAllowed)));
 }
 
 #[test]
@@ -1029,7 +1032,7 @@ fn verify_proof_blocked_when_paused() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(result, Err(Ok(Error::ContractPaused)));
+    assert_eq!(result, Err(Ok(VerifierError::ContractPaused)));
 }
 
 #[test]
@@ -1048,7 +1051,7 @@ fn verify_batch_blocked_when_paused() {
 
     let result = client.try_verify_batch(&caller, &vec![&env, item]);
 
-    assert_eq!(result, Err(Ok(Error::ContractPaused)));
+    assert_eq!(result, Err(Ok(VerifierError::ContractPaused)));
 }
 
 #[test]
@@ -1138,7 +1141,7 @@ fn execute_vk_update_rejects_before_the_effective_ledger() {
         .with_mut(|li| li.sequence_number = 100 + DEFAULT_VK_UPDATE_DELAY - 1);
     let result = client.try_execute_vk_update();
 
-    assert_eq!(result, Err(Ok(Error::TimelockNotElapsed)));
+    assert_eq!(result, Err(Ok(VerifierError::TimelockNotElapsed)));
     // Rejected execution leaves the proposal in place, still pending.
     assert!(client.get_pending_vk_update().is_some());
 }
@@ -1179,7 +1182,7 @@ fn execute_vk_update_rejects_when_nothing_is_pending() {
 
     let result = client.try_execute_vk_update();
 
-    assert_eq!(result, Err(Ok(Error::NoPendingVkUpdate)));
+    assert_eq!(result, Err(Ok(VerifierError::NoPendingVkUpdate)));
 }
 
 #[test]
@@ -1215,7 +1218,7 @@ fn propose_vk_update_rejects_wrong_ic_length() {
     };
 
     let result = client.try_propose_vk_update(&bad_vk);
-    assert_eq!(result, Err(Ok(Error::InvalidVerifyingKey)));
+    assert_eq!(result, Err(Ok(VerifierError::InvalidVerifyingKey)));
     assert!(client.get_pending_vk_update().is_none());
 }
 
@@ -1256,7 +1259,7 @@ fn fresh_proof_is_accepted_and_replay_is_rejected() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(result, Err(Ok(Error::AlreadyUsed)));
+    assert_eq!(result, Err(Ok(VerifierError::AlreadyUsed)));
 }
 
 #[test]
@@ -1278,7 +1281,7 @@ fn replay_is_rejected_even_from_a_different_caller() {
         &public_inputs_with_expiry(&env, u32::MAX),
     );
 
-    assert_eq!(result, Err(Ok(Error::AlreadyUsed)));
+    assert_eq!(result, Err(Ok(VerifierError::AlreadyUsed)));
 }
 
 #[test]
@@ -1320,7 +1323,7 @@ fn nullifier_check_runs_before_the_pairing_check_so_a_replay_does_not_re_verify(
     );
 
     assert_eq!(first, Ok(Ok(true)));
-    assert_eq!(second, Err(Ok(Error::AlreadyUsed)));
+    assert_eq!(second, Err(Ok(VerifierError::AlreadyUsed)));
 }
 
 #[test]
@@ -1457,7 +1460,7 @@ fn verify_proof_emits_no_event_on_err_rejection() {
         &Bytes::from_array(&env, &VALID_PROOF_C),
         &public_inputs_with_expiry(&env, u32::MAX),
     );
-    assert_eq!(result, Err(Ok(Error::CallerNotAllowed)));
+    assert_eq!(result, Err(Ok(VerifierError::CallerNotAllowed)));
 
     assert!(env.events().all().events().is_empty());
 }
@@ -1528,7 +1531,7 @@ fn accept_admin_fails_without_pending_admin() {
     let (_env, _admin, client) = setup(10, 100);
 
     let result = client.try_accept_admin();
-    assert_eq!(result, Err(Ok(Error::NoPendingAdmin)));
+    assert_eq!(result, Err(Ok(VerifierError::NoPendingAdmin)));
 }
 
 #[test]

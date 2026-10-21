@@ -13,6 +13,7 @@ circuits/poseidon_preimage/setup/*_0000.zkey
 circuits/poseidon_preimage/setup/*_final.zkey
 circuits/poseidon_preimage/setup/proof_real.json
 circuits/poseidon_preimage/setup/public_real.json
+temp_auto_push.bat
 circuits/poseidon_preimage/setup/verification_key_real.json
 circuits/merkle_inclusion/build/
 circuits/merkle_inclusion/setup/*.ptau
@@ -28,3 +29,5 @@ circuits/threshold_2of3/setup/*_0000.zkey
 circuits/threshold_2of3/setup/*_final.zkey
 soroban-zk.md
 BUILD_LOG.md
+.gitignore
+branch_structure.json
