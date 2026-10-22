@@ -1,8 +1,6 @@
 node_modules/
 dist/
 coverage/
-.env
-.env.local
 .DS_Store
 target/
 .stellar/
@@ -31,3 +29,4 @@ soroban-zk.md
 BUILD_LOG.md
 .gitignore
 branch_structure.json
+config.bat
