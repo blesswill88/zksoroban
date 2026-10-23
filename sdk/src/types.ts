@@ -40,6 +40,51 @@ export function emitProofStage(onProgress: OnProofProgress | undefined, stage: P
   }
 }
 
+/**
+ * Typed error codes mirroring `contracts/verifier`'s `VerifierError`
+ * `#[contracterror]` enum. The numeric values are stable and match the
+ * contract exactly; see `docs/architecture.md` for the full table.
+ */
+export enum VerifierErrorCode {
+  AlreadyInitialized = 1,
+  NotInitialized = 2,
+  Unauthorized = 3,
+  InvalidProof = 4,
+  InvalidPublicInputs = 5,
+  ProofExpired = 6,
+  RateLimited = 7,
+  NotAllowlisted = 8,
+  BatchTooLarge = 9,
+  EmptyBatch = 10,
+  VerificationKeyMissing = 11,
+  MalformedCalldata = 12,
+  ArithmeticOverflow = 13,
+}
+
+/**
+ * Typed SDK error thrown when the contract returns a `VerifierError`.
+ * Maps the numeric contract error code to a named `code` field.
+ */
+export class VerifierContractError extends Error {
+  readonly code: VerifierErrorCode;
+  readonly contractCode: number;
+
+  constructor(contractCode: number, message?: string) {
+    const name = VerifierErrorCode[contractCode] ?? `Unknown(${contractCode})`;
+    super(message ?? `Verifier contract error: ${name} (${contractCode})`);
+    this.name = "VerifierContractError";
+    this.code = contractCode as VerifierErrorCode;
+    this.contractCode = contractCode;
+  }
+}
+
+/**
+ * Maps a raw numeric contract error code to a {@link VerifierContractError}.
+ */
+export function toVerifierContractError(contractCode: number): VerifierContractError {
+  return new VerifierContractError(contractCode);
+}
+
 export interface SnarkjsProof {
   pi_a: [string, string, string];
   pi_b: [[string, string], [string, string], [string, string]];
@@ -312,140 +357,3 @@ export interface VerifyBatchOptions {
    */
   logger?: LogHandler;
 }
-
-/**
- * Result of a {@link verifyBatchOnChain} call — `verified[i]` corresponds to
- * `items[i]` from the request, in order.
- */
-export interface VerifyBatchResult {
-  verified: boolean[];
-  txHash: string;
-  ledger: number;
-  fee: string;
-}
-
-/**
- * One (circuit, proof) pair in a {@link verifyBatchViaRegistry} call,
- * targeting `contracts/registry`'s `verify_batch`.
- */
-export interface RegistryBatchItem {
-  /** The `id` a circuit was registered under via `register_circuit`. */
-  circuitId: number;
-  proof: SnarkjsProof;
-  publicSignals: string[];
-}
-
-/**
- * Options accepted by {@link verifyBatchViaRegistry}.
- *
- * Like {@link VerifyViaRegistryOptions}, no `keypair` is needed: the
- * registry's `verify_batch` requires no auth and mutates no storage, so this
- * call is simulation-only.
- */
-export interface VerifyBatchViaRegistryOptions {
-  /** `network.contractId` here is `contracts/registry`'s address, not `contracts/verifier`'s. */
-  network: NetworkConfig;
-  items: RegistryBatchItem[];
-  /**
-   * Optional retry policy for transient RPC failures. Omit for the
-   * previous single-attempt behavior — see {@link RetryOptions}.
-   */
-  retry?: RetryOptions;
-  /**
-   * Optional logger for structured logging. Omit to use the default
-   * logger (WARN level, console output) — see {@link LogHandler}.
-   */
-  logger?: LogHandler;
-}
-
-export enum SorobanZkErrorCode {
-  INVALID_PROOF_FORMAT = "INVALID_PROOF_FORMAT",
-  INVALID_PUBLIC_INPUT = "INVALID_PUBLIC_INPUT",
-  CONTRACT_INVOCATION_FAILED = "CONTRACT_INVOCATION_FAILED",
-  TRANSACTION_REJECTED = "TRANSACTION_REJECTED",
-  NETWORK_ERROR = "NETWORK_ERROR",
-  RESOURCE_LIMIT_EXCEEDED = "RESOURCE_LIMIT_EXCEEDED",
-  NETWORK_MISMATCH = "NETWORK_MISMATCH",
-  // Mirror contracts/verifier's `Error` enum (contracterror, repr(u32)) so a
-  // caller can distinguish these from each other and from generic failures,
-  // instead of every contract-level rejection collapsing into `false`.
-  CONTRACT_NOT_INITIALIZED = "CONTRACT_NOT_INITIALIZED",
-  RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
-  INVALID_WINDOW_SIZE = "INVALID_WINDOW_SIZE",
-  PROOF_EXPIRED = "PROOF_EXPIRED",
-  CALLER_NOT_ALLOWED = "CALLER_NOT_ALLOWED",
-  // Replay protection (zksoroban#11): this exact proof has already been
-  // accepted once and can never be accepted again, regardless of caller.
-  ALREADY_USED = "ALREADY_USED",
-  // Witness/proof computation itself failed (e.g. a wasm/zkey mismatch, or an
-  // input that doesn't satisfy the circuit's constraints) — distinct from
-  // INVALID_PROOF_FORMAT, which is about a proof's on-the-wire shape.
-  PROOF_GENERATION_FAILED = "PROOF_GENERATION_FAILED",
-  // deserializeProof (zksoroban#33) errors. Split from INVALID_PROOF_FORMAT
-  // so a caller can tell "this came from an incompatible SDK version" apart
-  // from "this data is just garbage/truncated" — a real, actionable
-  // difference for an application deciding how to react.
-  SERIALIZED_PROOF_VERSION_MISMATCH = "SERIALIZED_PROOF_VERSION_MISMATCH",
-  CORRUPTED_SERIALIZED_PROOF = "CORRUPTED_SERIALIZED_PROOF"
-}
-
-export class SorobanZkError extends Error {
-  constructor(message: string, public code: SorobanZkErrorCode) {
-    super(message);
-    this.name = "SorobanZkError";
-  }
-}
-
-export class ZkInputError extends SorobanZkError {
-  constructor(
-    public field: string,
-    public reason: string,
-    code: SorobanZkErrorCode = SorobanZkErrorCode.INVALID_PROOF_FORMAT,
-    detail?: string
-  ) {
-    super(`${field} ${reason}${detail ? ` (${detail})` : ""}`, code);
-    this.name = "ZkInputError";
-  }
-}
-
-export class NetworkMismatchError extends SorobanZkError {
-  constructor(
-    public expected: string,
-    public actual: string,
-    subject = "This ProofBundle targets"
-  ) {
-    super(
-      `${subject} network "${expected}", but the configured network's RPC server reports "${actual}"`,
-      SorobanZkErrorCode.NETWORK_MISMATCH
-    );
-    this.name = "NetworkMismatchError";
-  }
-}
-
-/**
- * A read-only snapshot of all non-sensitive verifier contract configuration
- * fields, as returned by the `get_config` contract function.
- *
- * Fields that the current contract does not implement (fee, timelock, etc.)
- * are returned as `undefined` / `false` so callers can detect at runtime
- * whether a feature is active without needing to know the contract version.
- */
-export interface ContractConfig {
-  /** Contract administrator Stellar address (G… or C…). */
-  admin: string;
-  /** Whether the contract is paused. Always `false` in the current version. */
-  paused: boolean;
-  /** Optional fee amount in stroops. `undefined` when not configured. */
-  feeAmount: bigint | undefined;
-  /** Optional fee token contract address. `undefined` when not configured. */
-  feeToken: string | undefined;
-  /** Maximum `verify_proof` calls allowed per caller per rate-limit window. */
-  rateLimitMax: number;
-  /** Rate-limit window size in ledgers. */
-  rateLimitWindow: number;
-  /** Timelock delay in ledgers. `undefined` when not configured. */
-  timelockDelay: number | undefined;
-  /** Whether an allowlist is enforced. Always `false` in the current version. */
-  allowlistEnabled: boolean;
-}
-

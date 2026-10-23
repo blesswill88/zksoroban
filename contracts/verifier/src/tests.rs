@@ -251,6 +251,34 @@ fn call_valid_2(env: &Env, client: &VerifierContractClient, caller: &Address) ->
 }
 
 #[test]
+fn verifier_error_codes_are_stable() {
+    // Error discriminants are part of the on-chain ABI; they must not change.
+    assert_eq!(VerifierError::InvalidProof as u32, 1);
+    assert_eq!(VerifierError::InvalidPublicInputs as u32, 2);
+    assert_eq!(VerifierError::Unauthorized as u32, 3);
+    assert_eq!(VerifierError::RateLimitExceeded as u32, 4);
+    assert_eq!(VerifierError::ProofExpired as u32, 5);
+    assert_eq!(VerifierError::NullifierReused as u32, 6);
+    assert_eq!(VerifierError::VkUpdateNotProposed as u32, 7);
+    assert_eq!(VerifierError::VkUpdateDelayNotElapsed as u32, 8);
+    assert_eq!(VerifierError::MalformedProof as u32, 9);
+    assert_eq!(VerifierError::MalformedVerifyingKey as u32, 10);
+    assert_eq!(VerifierError::AlreadyInitialized as u32, 11);
+    assert_eq!(VerifierError::InvalidConfig as u32, 12);NotInitialized as u32, 1);
+    assert_eq!(VerifierError::Unauthorized as u32, 2);
+    assert_eq!(VerifierError::AlreadyInitialized as u32, 3);
+    assert_eq!(VerifierError::InvalidProofEncoding as u32, 4);
+    assert_eq!(VerifierError::InvalidPublicInputs as u32, 5);
+    assert_eq!(VerifierError::ProofVerificationFailed as u32, 6);
+    assert_eq!(VerifierError::NullifierAlreadyUsed as u32, 7);
+    assert_eq!(VerifierError::ProofExpired as u32, 8);
+    assert_eq!(VerifierError::RateLimitExceeded as u32, 9);
+    assert_eq!(VerifierError::NoPendingVkUpdate as u32, 10);
+    assert_eq!(VerifierError::VkUpdateNotReady as u32, 11);
+    assert_eq!(VerifierError::InvalidVerifyingKey as u32, 12);
+}
+
+#[test]
 fn version_returns_the_crate_version() {
     let (env, _admin, client) = setup(10, 100);
     assert_eq!(client.version(), String::from_str(&env, env!("CARGO_PKG_VERSION")));
